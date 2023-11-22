@@ -1,9 +1,7 @@
 #include <ESP8266WiFi.h>
 #include <ESP8266HTTPClient.h>
-//#include <HttpClient.h>
 #include <WiFiClientSecureBearSSL.h>
 
-//WiFiClient wifiClient;
 
 const char* ssid = "hola 3";
 const char* password = "loki1879";
@@ -19,7 +17,6 @@ String payload2 = "{\"messaging_product\":\"whatsapp\",\"to\":\"523321321879\",\
 
 const String skillEndpoint = "https://api.amazonalexa.com/v1/skillnotifications/Skills/{skillId}/enablement";
 
-// Reemplaza "{skillId}" con el ID de tu skill
 const String skillId = "amzn1.ask.skill.9f964a95-817e-4823-a5b9-644f16eafdb0";
 
 void setup() {
@@ -78,8 +75,6 @@ void sendMessage(String server, String message) {
   WiFiClient wifiClient;
   http.begin(wifiClient, server);
   http.setTimeout(30000);
-  //HttpClient http(wifiClient, server, 443);
-  //http.post("/path"); // Coloca la ruta correcta para enviar mensajes
 
   http.addHeader("Content-Type", "application/json");
 
@@ -105,7 +100,6 @@ void sendNotificationToAlexa() {
   HTTPClient http;
   WiFiClient wifiClient;
 
-  // Crear una cadena temporal para almacenar el resultado de replace
   String endpoint = skillEndpoint;
   endpoint.replace("{skillId}", skillId);
 

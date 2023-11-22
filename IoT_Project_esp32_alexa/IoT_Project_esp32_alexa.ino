@@ -1,40 +1,40 @@
 #include <WiFi.h>
 #include <HTTPClient.h>
+#include "fauxmoESP.h"
 
 const char* ssid = "hola 3";
 const char* password = "loki1879";
 
 const int pinPuerta = 22;   // Número del pin para el sensor de la puerta
 const int pinVentana = 21;  // Número del pin para el sensor de la ventana
-const int pinUsuario = 23;  // Número del pin para simular la notificación del usuario
 
-#define LED 2
+#define LED          2
+#define ID_ESP       "switch"
+fauxmoESP fauxmo;
+bool usuarioEnCasa = true;  // Inicialmente, el usuario está en casa
 
-String token="Bearer EAAMn7Yo1OKkBO2m6gRpEsW9w71ghaiPYZCWyXIckhZAtIeTmZATKQb0Bf632594ty0lKDsLyGJ8nv2Dauj2UYSmSZCyhySXP3zp373jTfKZCJ8HNoGvCjWOL5RAOrHCORHdqOafZCkUJqYO0iSFCWTwVuVmZCRzQS3HpUZByQOudzgLq0ZBS4tkzZBrZBKnUrV6zZCXZCk7IlT1KQFYWdyD9P";
+String token="Bearer EAAMn7Yo1OKkBO57e3y9atyAldGoLJiAd8r5mfRNBU5wdT43etHzsZC3mjDVuWbG1r9XBnzIT9ZB8DEVZC8cmxJ4W6VZCvZBWf8o6goBu0PL7DkL6PpvGCHGTggL6URiUZAVwAAd9Pr71PknfHepCJrgzhi7A0q0x6pFEFsK0y6ATThBSp1VVydCyy4J6sewfyc3JXewYnWIRwpfDnI";
 String servidor = "https://graph.facebook.com/v17.0/175396735655719/messages";
 String payload1 = "{\"messaging_product\":\"whatsapp\",\"to\":\"523321321879\",\"type\":\"text\",\"text\": {\"body\": \"¡ALERTA! La puerta está abierta\"}}";
 String payload2 = "{\"messaging_product\":\"whatsapp\",\"to\":\"523321321879\",\"type\":\"text\",\"text\": {\"body\": \"¡ALERTA! La ventana está abierta\"}}";
-
-const String skillEndpoint = "https://api.amazonalexa.com/v1/skillnotifications/Skills/{skillId}/enablement";
-const String skillId = "amzn1.ask.skill.9f964a95-817e-4823-a5b9-644f16eafdb0";
 
 void setup() {
   Serial.begin(9600);
   pinMode(pinPuerta, INPUT);
   pinMode(pinVentana, INPUT);
-  pinMode(pinUsuario, INPUT_PULLUP);
-  pinMode(LED,OUTPUT);
+  pinMode(LED, OUTPUT);
   connectToWiFi();
+  connectToAlexa();
 }
 
 void loop() {
-  int estadoUsuario = digitalRead(pinUsuario);
+  fauxmo.handle();
 
   Serial.print("Estado usuario: ");
-  Serial.println(estadoUsuario == HIGH ? "En casa" : "ausente");
+  Serial.println(usuarioEnCasa == true ? "En casa" : "Ausente");
 
-  if (estadoUsuario == LOW) {
-    digitalWrite(LED,HIGH);
+  if (usuarioEnCasa == false) {
+    digitalWrite(LED, HIGH);
     int estadoPuerta = digitalRead(pinPuerta);
     int estadoVentana = digitalRead(pinVentana);
 
@@ -46,16 +46,13 @@ void loop() {
 
     if (estadoPuerta == HIGH) {
       sendMessage(servidor, payload1);
-      sendNotificationToAlexa();
     }
 
     if (estadoVentana == HIGH) {
       sendMessage(servidor, payload2);
-      sendNotificationToAlexa();
     }
-  }
-  else{
-    digitalWrite(LED,LOW);
+  } else {
+    digitalWrite(LED, LOW);
   }
 
   delay(1000);
@@ -101,25 +98,22 @@ void sendMessage(String server, String message) {
     }
 }
 
-void sendNotificationToAlexa() {
-  HTTPClient http;
-  WiFiClient wifiClient;
+void connectToAlexa() {
+  fauxmo.createServer(true);
+  fauxmo.setPort(80);
+  fauxmo.enable(true);
+  fauxmo.addDevice(ID_ESP);
 
-  String endpoint = skillEndpoint;
-  endpoint.replace("{skillId}", skillId);
-
-  http.begin(wifiClient, endpoint);
-  http.addHeader("Authorization", token);
-
-  int httpCode = http.GET();
-
-  if (httpCode > 0) {
-    Serial.print("Notificación de Alexa enviada. Código HTTP: ");
-    Serial.println(httpCode);
-  } else {
-    Serial.print("Error al enviar la notificación de Alexa. Código HTTP: ");
-    Serial.println(httpCode);
-  }
-
-  http.end();
+  fauxmo.onSetState([](unsigned char device_id, const char * device_name, bool state, unsigned char value) {
+    if (strcmp(device_name, ID_ESP) == 0) {
+      if (state) {
+        // Usuario en casa
+        usuarioEnCasa = true;
+      } else {
+        // Usuario ausente
+        usuarioEnCasa = false;
+      }
+    }
+  });
 }
+
